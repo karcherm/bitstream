@@ -19,11 +19,13 @@ jobs:
         enable-stack: True
         stack-version: latest
     - name: Cache
-      uses: actions/cache@v1
+      uses: actions/cache@v2
       env:
         cache-name: stack-cache
       with:
-        path: ~/.stack-work
+        path: |
+          ~/.stack
+          .stack-work
         key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/*.yaml') }}
         restore-keys: |
           ${{ runner.os }}-build-${{ env.cache-name }}-
@@ -31,4 +33,4 @@ jobs:
           ${{ runner.os }}-
 
     - name: Build and Test
-      run: stack test
+      run: stack --system-ghc test
