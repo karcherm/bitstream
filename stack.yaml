@@ -1,0 +1,9 @@
+resolver: lts-18.19
+
+packages:
+- .
+
+# see https://stackoverflow.com/a/70046775/ to get mintty work in the lts-18.19 resolver
+flags:
+  mintty:
+    Win32-2-13-1: false

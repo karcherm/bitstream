@@ -1,0 +1,36 @@
+name:                bitstream
+version:             0.1.0.0
+github:              "karcherm/bitstream"
+license:             BSD2
+author:              "Michael Karcher"
+maintainer:          "haskell@mkarcher.dialup.fu-berlin.de"
+copyright:           "2021 Michael Karcher"
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+
+synopsis:            parse byte streams as bit streams using Parsec
+category:            Parsing, Bits
+
+description:         Please see the README on GitHub at <https://github.com/karcherm/bitstream#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+- parsec >= 3 && < 4
+- array
+
+library:
+  source-dirs: src
+
+tests:
+  bitstream-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - bitstream
+    - hspec >= 2.7 && < 3
