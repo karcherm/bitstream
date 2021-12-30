@@ -7,8 +7,10 @@ import Test.Hspec
 import Text.Parsec.Prim
 import Text.Parsec.Error
 import Data.Bits
+import Data.Word
 import Data.List (unfoldr)
 import Data.Function (on)
+import Data.Either (isLeft)
 
 bsDropSimple :: Int -> BitStream -> BitStream
 bsDropSimple n bs = (iterate BitS.tail bs) !! n
@@ -231,13 +233,63 @@ main = hspec $ do
                 toBitsType MsbFirst (bsDropSimple 4 $ fromBytesLSBpartial [0x8E, 0xC4, 0x72] 4) `shouldBe` (0x1234 :: Word)
                 toBitsType LsbFirst (bsDropSimple 4 $ fromBytesMSBpartial [0x72, 0xC4, 0x8E] 4) `shouldBe` (0x1234 :: Word)
 
+    describe "Text.Parsec.Bit" $ do
+        describe "bitstream" $ do
+            it "should split parts of the stream" $ do
+                testP ((,,) <$> bitstream 2 <*> bitstream 1 <*> bitstream 5)
+                    (fromBytesLSB [0x8E]) `shouldBe` Right (fromBits [False, True], fromBits [True], fromBytesLSBpartial [0x11] 5)
+            it "should fail on short streams" $ do
+                testP (bitstream 9) (fromBytesLSB [0x8E]) `shouldSatisfy` isLeft
 
+        describe "one" $ do
+            it "should reject the empty stream" $
+                testP one BitS.empty `shouldSatisfy` isLeft
+            it "should reject a zero bit" $
+                testP one (fromBits [False]) `shouldSatisfy` isLeft
+            it "should accept a one bit" $
+                testP one (fromBits [True]) `shouldBe` Right True
+            it "should only gobble one bit" $
+                testP (one >> getInput) (fromBits [True, True]) `shouldBe` Right (fromBits [True])
 
-    describe "number" $ do
-        it "should parse LSB-first numbers" $ do
-             testP (number 2 LsbFirst) (fromBits [True, False]) `shouldBe` Right 1
-             testP (number 2 LsbFirst) (fromBits [True, True]) `shouldBe` Right 3
-        it "should parse MSB-first numbers" $ do
-             testP (number 2 MsbFirst) (fromBits [True, False]) `shouldBe` Right 2
-             testP (number 2 MsbFirst) (fromBits [True, True]) `shouldBe` Right 3
+        describe "ones" $ do
+            it "should accept the empty stream if count is 0" $
+                testP (ones 0) BitS.empty `shouldBe` Right []
+            it "should reject the empty stream if count is above 0" $
+                testP (ones 1) BitS.empty `shouldSatisfy` isLeft
+            it "should reject zero bits" $ do
+                testP (ones 1) (fromBits [False]) `shouldSatisfy` isLeft
+                testP (ones 3) (fromBits [True, True, False]) `shouldSatisfy` isLeft
+            it "should accept consecutive one bits" $ do
+                testP (ones 1) (fromBits [True]) `shouldBe` Right [True]
+                testP (ones 3) (fromBits [True, True, True]) `shouldBe` Right [True, True, True]
+            it "should only gobble as much bits as requested" $ do
+                testP (ones 1 >> getInput) (fromBits [True, True]) `shouldBe` Right (fromBits [True])
+                testP (ones 3 >> getInput) (fromBits [True, True, True, True]) `shouldBe` Right (fromBits [True])
 
+        describe "anyNumber" $ do
+            it "should fail on short bitstrings" $ do
+                testP (anyNumber 2 LsbFirst) BitS.empty `shouldSatisfy` isLeft
+                testP (anyNumber 2 LsbFirst) (fromBits [True]) `shouldSatisfy` isLeft
+            it "should parse LSB-first numbers" $ do
+                testP (anyNumber 2 LsbFirst) (fromBits [True, False]) `shouldBe` Right 1
+                testP (anyNumber 2 LsbFirst) (fromBits [True, True]) `shouldBe` Right 3
+            it "should parse MSB-first numbers" $ do
+                testP (anyNumber 2 MsbFirst) (fromBits [True, False]) `shouldBe` Right 2
+                testP (anyNumber 2 MsbFirst) (fromBits [True, True]) `shouldBe` Right 3
+
+        describe "anyNumberFull" $ do
+            it "should fail if not enough bits are available" $ do
+                testP (anyNumberFull LsbFirst :: BitParser () Word8)
+                        (fromBytesLSBpartial [0xAA] 7) `shouldSatisfy` isLeft
+            it "should take 8 bits for Word8" $ do
+                testP ((,) <$> anyNumberFull LsbFirst <*> getInput)
+                        (fromBytesLSB [0xAA, 0x55]) `shouldBe` Right (0xAA :: Word8, fromBytesLSB [0x55])
+            it "should take 16 bits for Word16" $ do
+                testP ((,) <$> anyNumberFull LsbFirst <*> getInput)
+                        (fromBytesLSB [0xAA, 0xF0, 0x55]) `shouldBe` Right (0xF0AA :: Word16, fromBytesLSB [0x55])
+
+        describe "number" $ do
+            it "should accept the expected number" $ do
+                testP (number 4 LsbFirst 5) (fromBytesLSB [0x45]) `shouldBe` (Right 5)
+            it "should reject an unexpected number" $ do
+                testP (number 4 LsbFirst 2) (fromBytesLSB [0x45]) `shouldSatisfy` isLeft
