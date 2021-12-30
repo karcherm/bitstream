@@ -1,4 +1,5 @@
 # bitstream
+[![Haskell CI](https://github.com/karcherm/bitstream/actions/workflows/haskell.yml/badge.svg)](https://github.com/karcherm/bitstream/actions/workflows/haskell.yml)
 
 ## Overview
 This package implements a wrapper around byte-based streams to access values and substreams in a bitwise fashion. The intended use case is parsing data formats that do not care about byte alignment of their bit streams, like many compressed data formats or formats of data that is not indended for byte-oriented processing, e.g. FPGA bitstreams.
